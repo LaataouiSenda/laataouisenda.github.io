@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can a model read solar physics papers? | Senda Laataoui</title>
+<meta property="og:title" content="Can a model read solar physics papers?">
+<meta property="og:description" content="I built a corpus of 102 heliophysics papers, annotated 34,888 entities by hand, and tested what ModernBERT and FLAN-T5 can extract. Here is what worked, and what didn’t.">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="../assets/favicon-48.png">
+<link rel="stylesheet" href="../assets/post.css">
+<style>
+/* post.css has no table, list or h3 rules; these use its variables. Move into post.css if you like. */
+h3{font:700 1.05rem/1.3 "Courier Prime",monospace;margin:1.8em 0 .3em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:1.6em 0}
+.stats div{background:var(--panel);border-radius:8px;padding:12px 14px;line-height:1.3}
+.stats b{display:block;font-size:1.5rem;color:var(--accent)}
+.stats span{font-size:.8rem;color:var(--dim)}
+.tbl{overflow-x:auto;margin:1.2em 0}
+table{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.5}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--rule)}
+th{border-bottom:2px solid var(--rule)}
+.n{text-align:right;white-space:nowrap}
+.best{font-weight:700;color:var(--accent)}
+figure{margin:1.8em 0}
+figcaption{margin-top:6px}
+li{margin:.25em 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">&larr; Senda Laataoui</a>
+<h1>Can a model read solar physics papers?</h1>
+<div class="date">November 2026</div>
+
+<blockquote>Solar physics papers are full of facts a database would love: which instrument, which mission, which observation period, which dataset. All of it is buried in long PDFs. For my end-of-studies project I built the resource that was missing, trained two models on it, and measured honestly where they work and where they don’t.</blockquote>
+
+<div class="stats">
+  <div><b>102</b><span>papers annotated by hand</span></div>
+  <div><b>34,888</b><span>entity annotations</span></div>
+  <div><b>672</b><span>figure captions</span></div>
+  <div><b>0.682</b><span>macro F1, best NER model</span></div>
+</div>
+
+<h2>The question</h2>
+<p>The Sun constantly throws charged particles and magnetic energy into space, and that can disturb satellites, communications and power grids. Heliophysics, the field that studies all this, publishes a steady stream of papers. But if you want every paper that used a particular instrument during a particular period, nobody can hand you that list. You have to read.</p>
+<p>So I asked a simple question: can a model pull this information out automatically? I found quickly that the hard part was not the model. There was no annotated corpus for solar physics, so I had to build one first. This post follows the project in that order: the data, the annotation rules, the training, then the results, including the parts that disappointed me.</p>
+
+<h2>Two models, two kinds of problem</h2>
+<p>I split the task in two, because the information comes in two different shapes. Entities such as an instrument name are literal pieces of text, so they can be found by labelling each word. Figure attributes are different: a caption might say “km/s” in one paper and “kilometres per second” in another, and I want a clean value either way. That calls for generating text, not only copying it.</p>
+<div class="tbl"><table>
+<thead><tr><th>Part</th><th>Approach</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Entities in the text</td><td>ModernBERT, token classification</td><td>Entities are literal spans of text</td></tr>
+<tr><td>Figure attributes</td><td>FLAN-T5-Large, text-to-text</td><td>Attributes often need normalising, not just copying</td></tr>
+</tbody></table></div>
+
+<figure>
+<img src="../assets/heliophysics-ner/pipeline.png" alt="Overall project pipeline, from PDFs to structured JSON" width="460">
+<figcaption>From PDF to structured JSON: conversion, annotation, two models.</figcaption>
+</figure>
+
+<h2>Building the corpus</h2>
+<p>I collected 102 open-access papers from arXiv (physics.space-ph) and NASA ADS, balanced across sub-topics so that no single theme dominated. I stopped at 102 on purpose. I was the only annotator, and I preferred a smaller corpus I could keep consistent over a bigger one I couldn’t.</p>
+<p>To get text out of the PDFs, I compared three conversion tools on a pilot of five papers and chose Docling. Even so, three problems shaped the pipeline:</p>
+<ul>
+<li>Text from neighbouring columns sometimes got mixed together.</li>
+<li>Captions were sometimes separated from their figures.</li>
+<li>Equations were replaced by a placeholder tag. I left them alone, because none of my entity classes depend on them.</li>
+</ul>
+<p>After conversion, each paper becomes two kinds of file: text blocks for the entities, and one file of captions for the figure attributes. Keeping them separate made the annotation faster and the two tasks cleaner.</p>
+
+<h2>Writing the rules</h2>
+<p>The annotation scheme is specific to heliophysics. It started from the facts that recur in every paper: what was used to measure, in which campaign, when, where, and based on which data. That gave five entity types.</p>
+<div class="tbl"><table>
+<thead><tr><th>Entity</th><th>What it marks</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td>Instrument</td><td>A device used to take measurements</td><td>COR1, COR2, Metis, LASCO</td></tr>
+<tr><td>Mission</td><td>A campaign the instrument belongs to</td><td>STEREO, SOHO</td></tr>
+<tr><td>TimeRange</td><td>The period the observation covers</td><td>January 13–17, 1996–2017</td></tr>
+<tr><td>SpatialRegion</td><td>The spatial domain observed</td><td>Magnetosphere, L1</td></tr>
+<tr><td>DatasetReference</td><td>Where the data came from</td><td>NCEP/NCAR, ERA, AERONET</td></tr>
+</tbody></table></div>
+<p>Each figure caption gets three further attributes. <b>FigureType</b> says what kind of plot it is (time series, spectral, spatial map, scatter, or other). <b>MeasurementUnit</b> and <b>ScientificObservable</b> describe the physical quantity shown.</p>
+<p>Most of the work was in the edge cases. Is MMS a mission or an instrument? Is a publication date a time range? I wrote a rule for each such case (publication dates are never scientific time ranges, for example) and revised the guidelines whenever a new ambiguity appeared. I annotated in Label Studio, with two small interfaces instead of one crowded one: one for text blocks, one for captions.</p>
+<p>The result is 34,888 entity annotations and 672 annotated captions. The classes are very uneven: Instrument and Mission together make up about two thirds of all entities, and DatasetReference is the rarest. That imbalance matters later.</p>
+
+<figure>
+<img src="../assets/heliophysics-ner/entity_distribution.png" alt="Distribution of entity types across the corpus" width="760">
+<figcaption>How the five entity types are distributed across the corpus.</figcaption>
+</figure>
+
+<h2>Training</h2>
+<p>Both models were fine-tuned on free GPUs, so I had to keep the setup modest.</p>
+<div class="tbl"><table>
+<thead><tr><th>Setting</th><th>ModernBERT-base</th><th>FLAN-T5-Large</th></tr></thead>
+<tbody>
+<tr><td>Task</td><td>Token classification</td><td>Text-to-text generation</td></tr>
+<tr><td>Learning rate</td><td>2e-5</td><td>3e-4</td></tr>
+<tr><td>Imbalance handling</td><td>Weighted loss</td><td>Oversampling of rare classes</td></tr>
+<tr><td>Input</td><td>1,024-token windows, stride 128</td><td>Caption text</td></tr>
+<tr><td>Stopping</td><td>Early stopping</td><td>Best validation checkpoint</td></tr>
+<tr><td>Inference</td><td>Argmax per token</td><td>Beam search, 4 beams</td></tr>
+<tr><td>Hardware</td><td>Colab GPU, about 1.5 hours</td><td>Kaggle GPU</td></tr>
+</tbody></table></div>
+<p>ModernBERT can handle 8,192 tokens, but I trained it on windows of 1,024 so that it would fit on a single Colab GPU. That detail comes back in the results. FLAN-T5 is asked to write its answer in a fixed format (type, unit, variable), which turned out to matter, as you will see.</p>
+<p>The train, validation and test sets all contain every sub-topic. I report one split, without cross-validation.</p>
+
+<h2>Results: finding entities</h2>
+<p>I compared ModernBERT with SciBERT and with a rule-based baseline built on dictionaries. Scores are entity-level F1 on the test set (seqeval).</p>
+<div class="tbl"><table>
+<thead><tr><th>Entity</th><th class="n">Rule-based</th><th class="n">SciBERT</th><th class="n">ModernBERT</th><th class="n">Test support</th></tr></thead>
+<tbody>
+<tr><td>Instrument</td><td class="n">0.409</td><td class="n">0.750</td><td class="n best">0.760</td><td class="n">1,135</td></tr>
+<tr><td>Mission</td><td class="n">0.573</td><td class="n">0.829</td><td class="n best">0.889</td><td class="n">741</td></tr>
+<tr><td>TimeRange</td><td class="n">0.167</td><td class="n best">0.760</td><td class="n">0.724</td><td class="n">661</td></tr>
+<tr><td>SpatialRegion</td><td class="n">0.197</td><td class="n">0.585</td><td class="n best">0.604</td><td class="n">456</td></tr>
+<tr><td>DatasetReference</td><td class="n">0.151</td><td class="n">0.327</td><td class="n best">0.434</td><td class="n">178</td></tr>
+<tr><td><b>Macro F1</b></td><td class="n">0.300</td><td class="n">0.652</td><td class="n best">0.682</td><td class="n"></td></tr>
+</tbody></table></div>
+
+<figure>
+<img src="../assets/heliophysics-ner/ner_per_class_results.png" alt="Precision, recall and F1 per entity type for ModernBERT" width="760">
+<figcaption>Precision, recall and F1 per entity type, ModernBERT.</figcaption>
+</figure>
+
+<p>Three things stand out.</p>
+<h3>The big gap is between rules and learning</h3>
+<p>Moving from the dictionary baseline to a fine-tuned transformer adds about 0.35 macro F1. Moving from SciBERT to ModernBERT adds 0.03. Dictionaries cope with closed lists such as instrument names, and fall apart on classes whose wording varies freely: time ranges, regions, dataset references. A rule can only recognise what its author thought of in advance.</p>
+<h3>ModernBERT’s edge is uneven</h3>
+<p>It gains 0.060 on Mission and 0.107 on DatasetReference, ties on Instrument, and loses to SciBERT on TimeRange. My guess is that Mission and DatasetReference depend on context spread over a long stretch of text: a mission is often named once and then referred to indirectly paragraphs later. ModernBERT saw windows of 1,024 tokens, twice what SciBERT sees. But it is only a guess. The two models also differ in architecture and pre-training data, and I did not run the experiment that would isolate context length.</p>
+<h3>Recall beats precision</h3>
+<p>Macro precision is 0.628 and recall 0.751, so the model rarely misses an entity but produces false positives. DatasetReference is the hardest class (0.434) and also the rarest, with only 178 test instances, so a handful of errors moves it a lot. Frequency alone does not explain it, though: Mission has fewer examples than Instrument and still scores higher. How varied and how ambiguous the wording is matters too.</p>
+
+<h2>Results: reading figure captions</h2>
+<p>FLAN-T5 was evaluated on 69 test captions. Every output followed the requested format and carried a valid FigureType, so the model never produced something unusable, which is what you need before plugging it into an automatic pipeline.</p>
+<div class="tbl"><table>
+<thead><tr><th>Attribute</th><th>Metric</th><th class="n">FLAN-T5-Base</th><th class="n">FLAN-T5-Large</th></tr></thead>
+<tbody>
+<tr><td>FigureType</td><td>Accuracy</td><td class="n">0.710</td><td class="n best">0.724</td></tr>
+<tr><td>MeasurementUnit</td><td>Set F1 (normalised)</td><td class="n">0.699</td><td class="n best">0.715</td></tr>
+<tr><td>ScientificObservable</td><td>Set F1 (strict exact match)</td><td class="n">0.335</td><td class="n best">0.422</td></tr>
+</tbody></table></div>
+<p>For the two attributes with closed vocabularies, the bigger model adds very little (+0.014 and +0.016). The gain (+0.086) lands on ScientificObservable, the one attribute with a truly open vocabulary.</p>
+
+<h3>FigureType: where the errors are</h3>
+<p>The model got 50 of 69 captions right. The errors are not random. They follow the pairs a human annotator would also hesitate on: time series versus scatter, time series versus spatial map, spatial map versus other. A caption for a multi-panel figure that mixes a map and a time series can honestly belong to two classes. “Other” is a residual class, and most of its errors come from time series.</p>
+<div class="tbl"><table>
+<thead><tr><th>FigureType</th><th class="n">F1</th><th class="n">Support</th></tr></thead>
+<tbody>
+<tr><td>Spatial-map</td><td class="n best">0.833</td><td class="n">21</td></tr>
+<tr><td>Time-series</td><td class="n">0.720</td><td class="n">23</td></tr>
+<tr><td>Other</td><td class="n">0.700</td><td class="n">11</td></tr>
+<tr><td>Scatter</td><td class="n">0.667</td><td class="n">6</td></tr>
+<tr><td>Spectral</td><td class="n">0.588</td><td class="n">8</td></tr>
+<tr><td><b>Macro average</b></td><td class="n">0.702</td><td class="n">69</td></tr>
+</tbody></table></div>
+<p>I would not read much into the small classes. With 6 scatter and 8 spectral examples, one wrong prediction moves the F1 by several points.</p>
+
+<figure>
+<img src="../assets/heliophysics-ner/figuretype_confusion_matrix.png" alt="Confusion matrix for FigureType" width="560">
+<figcaption>FigureType confusion matrix on the test captions.</figcaption>
+</figure>
+
+<h3>Why ScientificObservable scores low</h3>
+<p>The annotations hold 868 distinct observable terms, and 74% of them appear only once. Under exact matching, a model has almost no chance of reproducing a term it never saw. If the annotation says “velocity of the solar wind” and the model writes “speed of the solar wind”, the strict metric counts a miss, even though the concept is right.</p>
+<p>Splitting the test examples by how much of their vocabulary appeared in training makes this visible:</p>
+<div class="tbl"><table>
+<thead><tr><th>Vocabulary seen in training</th><th class="n">Examples</th><th class="n">Strict F1</th><th class="n">Lenient F1</th></tr></thead>
+<tbody>
+<tr><td>Fully seen</td><td class="n">19</td><td class="n">0.689</td><td class="n">0.797</td></tr>
+<tr><td>Partially seen</td><td class="n">25</td><td class="n">0.369</td><td class="n">0.710</td></tr>
+<tr><td>Fully unseen</td><td class="n">18</td><td class="n">0.046</td><td class="n">0.467</td></tr>
+</tbody></table></div>
+
+<figure>
+<img src="../assets/heliophysics-ner/f1_distribution_per_example.png" alt="Distribution of normalised F1 per test example" width="640">
+<figcaption>Per-example F1: scores cluster near 0 for terms never seen, near 1 for terms reproduced exactly.</figcaption>
+</figure>
+
+<p>When the terms were seen, the model reproduces them well. When they weren’t, the strict score drops to almost zero, while the lenient score (partial credit for overlapping words) stays around 0.47. So the low headline number says as much about the metric as about the model. That is a fairer reading than “the model fails”, but it doesn’t mean the problem is solved: word overlap is a generous metric, and a proper semantic evaluation would be better.</p>
+
+<h2>What I took away</h2>
+<p>Performance depends on how well a model’s assumptions match the structure of the task. A dictionary cannot generalise beyond its list. A short window suits entities that live inside one sentence and struggles with those spread across a document. Exact match is the wrong ruler for an open vocabulary. Reading the errors this way taught me more than any single overall score.</p>
+<p>The second lesson is about the data. The model gap between SciBERT and ModernBERT is small next to what a clear annotation scheme does. Most of the quality in this project comes from the long list of small decisions I wrote down while annotating.</p>
+
+<h2>Limitations</h2>
+<ul>
+<li><b>One annotator.</b> I annotated everything myself, so I could not measure inter-annotator agreement. The labels follow my written guidelines, but I can’t yet say how reproducible they are for someone else.</li>
+<li><b>Small data.</b> 102 papers, 69 test captions, and 178 test instances for the rarest class. The scores carry real variance.</li>
+<li><b>One split.</b> No cross-validation.</li>
+<li><b>A partly uncontrolled comparison.</b> SciBERT’s shorter windows meant its test subset differed slightly from ModernBERT’s, so the per-class gaps are indicators, not controlled measurements.</li>
+<li><b>Windows shorter than the model allows.</b> ModernBERT was trained on 1,024 tokens, not its full 8,192, and neither transformer was pre-trained further on solar physics text.</li>
+</ul>
+
+<h2>What’s next</h2>
+<ol>
+<li>Test the context hypothesis directly: the same model at 512, 1,024 and 8,192 tokens.</li>
+<li>Continue pre-training ModernBERT on heliophysics text before fine-tuning.</li>
+<li>Add a second annotator, measure agreement, and grow the corpus.</li>
+<li>Evaluate open-vocabulary attributes with a semantic metric instead of exact match.</li>
+</ol>
+<p>If extraction becomes reliable at this scale, a literature review could start from a structured query instead of hundreds of PDFs.</p>
+
+<h2>Reproducing this</h2>
+<p>Both notebooks are written for a GPU runtime (Google Colab or Kaggle). The first covers data preparation, training and evaluation for ModernBERT. The second trains FLAN-T5 and runs the caption analysis. The annotated data is not part of the repository, so you need to supply your own Label Studio export for the first notebook and your own annotated captions for the second.</p>
+<pre><code>git clone https://github.com/USERNAME/heliophysics-ner.git
+cd heliophysics-ner
+pip install -r requirements.txt</code></pre>
+<p>The code, notebooks and results are on <a href="https://github.com/USERNAME/heliophysics-ner">GitHub</a>. Feedback is very welcome, especially from people working on information extraction for scientific literature.</p>
+
+<blockquote>Thank you to my supervisor, Pr. Mounir Zrigui, for his guidance throughout this project, and to Polytech Monastir.</blockquote>
+
+</div>
+</body>
+</html>
