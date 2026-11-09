@@ -40,6 +40,6 @@ const teaching = [
 
 // Add articles here. featured:true adds a purple * (use it for your best / start-here pieces). link = "blogs/your-article.html" or any external URL
 const posts = [
-  // {title:"Your article title", date:"November 2026", summary:"One sentence.", link:"blogs/your-article.html", featured:true},
+  {title:"Can a model read solar physics papers?", date:"November 2026", summary:"I built a corpus of 102 heliophysics papers, annotated 34,888 entities by hand, and tested what ModernBERT and FLAN-T5 can extract. What worked, and what didn't.", link:"blogs/heliophysics-ner.html", featured:true},
 ];
 /* =============================================================== */
