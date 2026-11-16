@@ -1,97 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Senda Laataoui | Explainable AI for medical imaging</title>
-<meta name="description" content="Senda Laataoui, software engineer and deep learning researcher working on explainable AI and medical image analysis.">
+<title>Senda Laataoui</title>
+<meta name="description" content="Senda Laataoui, deep learning researcher working on explainable AI and medical image analysis.">
 <meta property="og:title" content="Senda Laataoui">
-<meta property="og:description" content="Explainable AI for medical imaging. Research notes, projects and writing.">
+<meta property="og:description" content="Explainable AI for medical imaging. News and technical notes.">
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="assets/style.css">
 <style>
-  /* calmer background: lower particle visibility */
-  #bg { opacity: .35; }
-  .interests strong { font-weight: 700; }
-  .pubs p { margin: 0 0 .6rem; }
+:root{--bg:#fcfcfb;--panel:#f4f4f2;--fg:#222124;--dim:#6c6a70;--accent:#7a4fc7;--soft:#d9c8f3;--rule:#e6e5e2}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151416;--panel:#1e1d20;--fg:#ececee;--dim:#9c9aa2;--accent:#c7a8f7;--soft:#4a3a6b;--rule:#2d2c30}}
+:root[data-theme="dark"]{--bg:#151416;--panel:#1e1d20;--fg:#ececee;--dim:#9c9aa2;--accent:#c7a8f7;--soft:#4a3a6b;--rule:#2d2c30}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 "Courier Prime","Courier New",monospace}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 45% at 8% 0%,color-mix(in srgb,var(--soft) 40%,transparent),transparent 70%)}
+::selection{background:var(--soft);color:var(--fg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:760px;margin:0 auto;padding:64px 24px 100px;position:relative}
+.theme{position:absolute;top:24px;right:24px;background:none;border:1px solid var(--rule);color:var(--dim);border-radius:99px;padding:3px 12px;cursor:pointer;font:inherit;font-size:.85rem}
+header{display:grid;grid-template-columns:160px 1fr;gap:36px;align-items:start;padding-bottom:36px;border-bottom:1px solid var(--rule)}
+.photo{width:160px;height:160px;border-radius:50%;object-fit:cover;background:var(--panel);box-shadow:0 0 0 4px var(--soft)}
+h1{font:700 2.2rem/1.15 "Courier Prime","Courier New",monospace;margin:0 0 14px}
+header p{margin:0 0 10px}
+.links{margin-top:14px;font-weight:700}
+.links span{color:var(--dim);margin:0 8px}
+h2{font:700 1.5rem/1.2 "Courier Prime","Courier New",monospace;margin:56px 0 22px}
+h2::after{content:"";display:block;width:32px;height:2px;background:var(--accent);margin-top:12px;border-radius:2px}
+.news{list-style:none;padding:0;margin:0}
+.news li{display:grid;grid-template-columns:84px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.news time{color:var(--dim);font-weight:700;font-size:.88rem;padding-top:2px}
+.post{padding:16px 0;border-bottom:1px solid var(--rule)}
+.post h3{font:700 1.05rem "Courier Prime","Courier New",monospace;margin:0 0 2px}
+.post .date{color:var(--dim);font-size:.85rem;margin-bottom:6px}
+.post p{margin:0;color:var(--dim)}
+.soon{color:var(--dim);font-weight:400}
+footer{margin-top:64px;color:var(--dim);font-size:.85rem}
+@media(max-width:640px){
+ header{grid-template-columns:1fr;gap:20px}
+ .photo{width:120px;height:120px}
+ .news li{grid-template-columns:1fr;gap:0}
+ .wrap{padding-top:72px}
+}
 </style>
 </head>
-
-
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
-<div class="layout">
-<aside>
-  <img class="photo" src="assets/photo.jpg" alt="Senda Laataoui">
-  <h1>Senda Laataoui</h1>
-  <p class="tag">Explainable AI for medical imaging</p>
-  <nav id="nav" aria-label="Sections">
-    <a href="#about">About</a><a href="#news">News</a><a href="#research">Research</a><a href="#publications">Writing</a><a href="#projects">Projects</a><a href="#path">Experience</a><a href="#teaching">Teaching</a><a href="#blog">Blog</a><a href="#contact">Contact</a>
-  </nav>
-  <div class="social">
-    <a href="mailto:laataouisenda@gmail.com">Email</a><a href="assets/cv.pdf">CV</a><a href="https://github.com/laataouisenda">GitHub</a><a href="https://www.linkedin.com/in/YOUR_LINKEDIN_HANDLE">LinkedIn</a>
-  </div>
-  <button class="theme" id="theme"> ☾ </button>
-</aside>
+<div class="wrap">
+<button class="theme" id="theme" aria-label="Toggle light and dark theme">&#9790;</button>
 
-<main>
-<section id="about">
-  <p>I build deep learning models for medical images, and I care about making their decisions understandable to the clinicians who would rely on them.</p>
-  <p class="interests"><strong>Research interests:</strong> <strong>explainable AI</strong> and <strong>medical image analysis</strong>, in particular prototype-based reasoning, attribution methods (LIME) and multi-task models for segmentation and severity grading. I also work on <strong>NLP</strong>: my final-year project was named entity recognition for heliophysics literature (ModernBERT, FLAN-T5).</p>
-  <p>I am a software engineer (École polytechnique privée de Monastir, ranked first in my class) with a research master's in Software Engineering specialised in deep learning (ISIMM, ranked second in my class). In 2025 I worked at BASIRA Lab in London on explainable models for Parkinson's disease diagnosis from spiral drawings. I am a member of MICCAI and currently a part-time lecturer at ISIMM.</p>
-  <div class="seeking"><strong>Looking for a PhD position</strong> in explainable AI and medical image analysis (interpretable diagnosis, segmentation and severity grading, trustworthy medical ML), in France or elsewhere in Europe. I am also open to adjacent topics such as NLP and trustworthy ML.</div>
-</section>
+<header>
+  <img class="photo" src="assets/photo.jpg" alt="Senda Laataoui">
+  <div>
+    <h1>Senda Laataoui</h1>
+    <p>Research interests: <strong>explainable AI</strong> and <strong>medical image analysis</strong>, with a side interest in <strong>NLP for scientific text</strong>.</p>
+    <p>I build deep learning models for medical images, and I care about making their decisions understandable to the clinicians who would rely on them.</p>
+    <p>I recently graduated as an AI engineer after a research master's with BASIRA Lab (London), and I teach practical sessions at ISIMM.</p>
+    <p>Looking for a <strong>PhD position</strong> in explainable AI and medical image analysis, in France or elsewhere in Europe.</p>
+    <div class="links">
+      <a href="mailto:laataouisenda@gmail.com">Email</a><span>|</span><a href="assets/cv.pdf">CV</a><span>|</span><a href="https://github.com/laataouisenda">GitHub</a><span>|</span><a href="https://www.linkedin.com/in/senda-laataoui">LinkedIn</a>
+    </div>
+  </div>
+</header>
 
 <section id="news">
   <h2>News</h2>
-  <ul class="news" id="newsList"></ul>
-</section>
-
-<section id="research">
-  <h2>Research</h2>
-  <div class="focus" id="focusList"></div>
-</section>
-
-<section id="publications" class="pubs">
-  <h2>Writing and theses</h2>
-  <p>No peer-reviewed publications yet. My main written work so far is my master's thesis, <em>Explainable Medical Data Analysis for Automated Diagnosis</em> (ISIMM, with BASIRA Lab), available on request, and the technical write-ups in the Blog section below.</p>
-</section>
-
-<section id="projects">
-  <h2>Projects<span class="star">*</span></h2>
-  <p class="legend"><span class="star">*</span>my favourite work</p><div id="projectList"></div>
-</section>
-
-<section id="path">
-  <h2>Experience and education</h2>
-  <div class="tl" id="pathList"></div>
-</section>
-
-<section id="teaching">
-  <h2>Teaching</h2>
-  <div id="teachList"></div>
+  <ul class="news">
+    <li><time>Nov-26</time><span>Organised DevFest Monastir with Google Developer Groups.</span></li>
+    <li><time>Sep-26</time><span>Defended my final-year project on named entity recognition for heliophysics literature and graduated as an engineer.</span></li>
+    <li><time>May-26</time><span>Designed and ran a hands-on workshop on explainable AI (LIME) at IMSET.</span></li>
+    <li><time>Dec-25</time><span>Defended my research master's thesis on explainable medical data analysis for Parkinson's diagnosis.</span></li>
+    <li><time>Mar-25</time><span>Joined BASIRA Lab (London) as a deep learning intern.</span></li>
+  </ul>
 </section>
 
 <section id="blog">
-  <h2>Blog &amp; technical notes<span class="star">*</span></h2>
-  <p class="legend"><span class="star">*</span>start here</p>
-  <div id="postList"></div>
-</section>
-
-<section id="contact">
-  <h2>Contact</h2>
-  <p>I am happy to talk about research collaborations, PhD supervision and open positions. The quickest way is email: <a href="mailto:laataouisenda@gmail.com">laataouisenda@gmail.com</a>.</p>
+  <h2>Blog &amp; technical notes</h2>
+  <!-- To add a post: copy one <div class="post"> block and link its title, e.g. <a href="posts/my-post.html">Title</a> -->
+  <div class="post">
+    <h3>Named entity recognition for heliophysics literature <span class="soon">(coming soon)</span></h3>
+    <div class="date">2026</div>
+    <p>How I built an annotated corpus, a PDF extraction pipeline and a model comparison for scientific text, and what failed along the way.</p>
+  </div>
 </section>
 
 <footer>&copy; <span id="yr"></span> Senda Laataoui</footer>
-</main>
 </div>
 
-<script src="assets/content.js"></script>
-<script src="assets/main.js"></script>
+<script>
+document.getElementById("yr").textContent = new Date().getFullYear();
+(function(){
+  var root = document.documentElement, btn = document.getElementById("theme");
+  try { var saved = localStorage.getItem("theme"); if (saved) root.setAttribute("data-theme", saved); } catch(e){}
+  btn.addEventListener("click", function(){
+    var dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("theme", next); } catch(e){}
+  });
+})();
+</script>
 </body>
 </html>
