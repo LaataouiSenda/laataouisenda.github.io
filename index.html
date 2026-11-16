@@ -13,6 +13,12 @@
 <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/style.css">
+<style>
+  /* calmer background: lower particle visibility */
+  #bg { opacity: .35; }
+  .interests strong { font-weight: 700; }
+  .pubs p { margin: 0 0 .6rem; }
+</style>
 </head>
 
 
@@ -20,24 +26,24 @@
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="layout">
 <aside>
-  <!-- Save your photo as assets/photo.jpg, then replace the div with: <img class="photo" src="assets/photo.jpg" alt="Senda Laataoui"> -->
   <img class="photo" src="assets/photo.jpg" alt="Senda Laataoui">
   <h1>Senda Laataoui</h1>
   <p class="tag">Explainable AI for medical imaging</p>
   <nav id="nav" aria-label="Sections">
-    <a href="#about">About</a><a href="#news">News</a><a href="#research">Research</a><a href="#projects">Projects</a><a href="#path">Experience</a><a href="#teaching">Teaching</a><a href="#blog">Blog</a><a href="#contact">Contact</a>
+    <a href="#about">About</a><a href="#news">News</a><a href="#research">Research</a><a href="#publications">Publications</a><a href="#projects">Projects</a><a href="#path">Experience</a><a href="#teaching">Teaching</a><a href="#blog">Blog</a><a href="#contact">Contact</a>
   </nav>
   <div class="social">
-    <a href="mailto:YOUR_EMAIL">Email</a><a href="assets/cv.pdf">CV</a><a href="https://github.com/laataouisenda">GitHub</a><a href="https://github.com/laataouisenda">LinkedIn</a>
+    <a href="mailto:laataouisenda@gmail.com">Email</a><a href="assets/cv.pdf">CV</a><a href="https://github.com/laataouisenda">GitHub</a><a href="https://www.linkedin.com/in/YOUR_LINKEDIN_HANDLE">LinkedIn</a>
   </div>
   <button class="theme" id="theme"> ☾ </button>
 </aside>
 
 <main>
 <section id="about">
-  <p class="lead">I build deep learning models for medical images, and I care about making their decisions understandable to the clinicians who would rely on them.</p>
-  <p>I am a software engineer (École polytechnique privée de Monastir, ranked first in my class) with a research master's in Software Engineering specialised in deep learning (ISIMM). In 2025 I worked at BASIRA Lab in London on explainable models for Parkinson's disease diagnosis. I am a member of MICCAI.</p>
-  <div class="seeking"><strong>Looking for a PhD<span class="q" tabindex="0" title="Topic is flexible: anything close to explainable AI, medical imaging or trustworthy ML.">?</span> position</strong> in explainable AI and medical image analysis, in France or elsewhere in Europe.</div>
+  <p>I build deep learning models for medical images, and I care about making their decisions understandable to the clinicians who would rely on them.</p>
+  <p class="interests"><strong>Research interests:</strong> <strong>explainable AI</strong> and <strong>medical image analysis</strong>, in particular prototype-based reasoning, attribution methods (LIME) and multi-task models for segmentation and severity grading. I also work on <strong>NLP</strong>: my final-year project was named entity recognition for heliophysics literature (ModernBERT, FLAN-T5).</p>
+  <p>I am a software engineer (École polytechnique privée de Monastir, ranked first in my class) with a research master's in Software Engineering specialised in deep learning (ISIMM, ranked second in my class). In 2025 I worked at BASIRA Lab in London on explainable models for Parkinson's disease diagnosis from spiral drawings. I am a member of MICCAI and currently a part-time lecturer at ISIMM.</p>
+  <div class="seeking"><strong>Looking for a PhD position</strong> in explainable AI and medical image analysis (interpretable diagnosis, segmentation and severity grading, trustworthy medical ML), in France or elsewhere in Europe. I am also open to adjacent topics such as NLP and trustworthy ML.</div>
 </section>
 
 <section id="news">
@@ -48,6 +54,12 @@
 <section id="research">
   <h2>Research</h2>
   <div class="focus" id="focusList"></div>
+</section>
+
+<section id="publications" class="pubs">
+  <h2>Publications</h2>
+  <p>I am a contributing author on two scientific articles, one from BASIRA Lab (explainable diagnosis from spiral drawings) and one from Lab-TIM (cardiac MRI segmentation). Links will be added here as soon as they are public.</p>
+  <p>My master's thesis, <em>Explainable Medical Data Analysis for Automated Diagnosis</em> (ISIMM, with BASIRA Lab), is available on request.</p>
 </section>
 
 <section id="projects">
