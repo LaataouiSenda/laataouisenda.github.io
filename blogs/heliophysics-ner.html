@@ -9,28 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="48x48" href="../assets/favicon-48.png">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://laataouisenda.github.io/assets/og-heliophysics-ner.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="../assets/post.css">
-<style>
-/* post.css has no table, list or h3 rules; these use its variables. Move into post.css if you like. */
-h3{font:700 1.05rem/1.3 "Courier Prime",monospace;margin:1.8em 0 .3em}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:1.6em 0}
-.stats div{background:var(--panel);border-radius:8px;padding:12px 14px;line-height:1.3}
-.stats b{display:block;font-size:1.5rem;color:var(--accent)}
-.stats span{font-size:.8rem;color:var(--dim)}
-.tbl{overflow-x:auto;margin:1.2em 0}
-table{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.5}
-th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--rule)}
-th{border-bottom:2px solid var(--rule)}
-.n{text-align:right;white-space:nowrap}
-.best{font-weight:700;color:var(--accent)}
-figure{margin:1.8em 0}
-figcaption{margin-top:6px}
-li{margin:.25em 0}
-</style>
+
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 </head>
+
 <body>
 <div class="wrap">
-<a class="back" href="../index.html">&larr; Senda Laataoui</a>
+<div class="top">
+  <img src="../assets/favicon.svg" alt="">
+  <a class="back" href="../index.html">&larr; Senda Laataoui</a>
+</div>
 <h1>Can a model read solar physics papers?</h1>
 <div class="date">November 2026</div>
 
@@ -50,14 +43,16 @@ li{margin:.25em 0}
 <h2>Two models, two kinds of problem</h2>
 <p>I split the task in two, because the information comes in two different shapes. Entities such as an instrument name are literal pieces of text, so they can be found by labelling each word. Figure attributes are different: a caption might say “km/s” in one paper and “kilometres per second” in another, and I want a clean value either way. That calls for generating text, not only copying it.</p>
 <div class="tbl"><table>
+<caption>Table 1. The two tasks and the model chosen for each.</caption>
+
 <thead><tr><th>Part</th><th>Approach</th><th>Why</th></tr></thead>
 <tbody>
 <tr><td>Entities in the text</td><td>ModernBERT, token classification</td><td>Entities are literal spans of text</td></tr>
 <tr><td>Figure attributes</td><td>FLAN-T5-Large, text-to-text</td><td>Attributes often need normalising, not just copying</td></tr>
 </tbody></table></div>
 
-<figure>
-<img src="../assets/heliophysics-ner/pipeline.png" alt="Overall project pipeline, from PDFs to structured JSON" width="460">
+<figure class="fig">
+<img src="../assets/heliophysics-ner/pipeline.png" alt="Overall project pipeline, from PDFs to structured JSON" width="1760" height="880">
 <figcaption>From PDF to structured JSON: conversion, annotation, two models.</figcaption>
 </figure>
 
@@ -74,6 +69,7 @@ li{margin:.25em 0}
 <h2>Writing the rules</h2>
 <p>The annotation scheme is specific to heliophysics. It started from the facts that recur in every paper: what was used to measure, in which campaign, when, where, and based on which data. That gave five entity types.</p>
 <div class="tbl"><table>
+<caption>Table 2. The five entity types of the annotation scheme, with examples.</caption>
 <thead><tr><th>Entity</th><th>What it marks</th><th>Examples</th></tr></thead>
 <tbody>
 <tr><td>Instrument</td><td>A device used to take measurements</td><td>COR1, COR2, Metis, LASCO</td></tr>
@@ -86,14 +82,15 @@ li{margin:.25em 0}
 <p>Most of the work was in the edge cases. Is MMS a mission or an instrument? Is a publication date a time range? I wrote a rule for each such case (publication dates are never scientific time ranges, for example) and revised the guidelines whenever a new ambiguity appeared. I annotated in Label Studio, with two small interfaces instead of one crowded one: one for text blocks, one for captions.</p>
 <p>The result is 34,888 entity annotations and 672 annotated captions. The classes are very uneven: Instrument and Mission together make up about two thirds of all entities, and DatasetReference is the rarest. That imbalance matters later.</p>
 
-<figure>
-<img src="../assets/heliophysics-ner/entity_distribution.png" alt="Distribution of entity types across the corpus" width="760">
-<figcaption>How the five entity types are distributed across the corpus.</figcaption>
+<figure class="fig">
+<img src="../assets/heliophysics-ner/entity_distribution.png" alt="Distribution of entity types across the corpus, one dot per 100 annotations" width="1760" height="880">
+<figcaption>The five entity types across the corpus. One dot is 100 annotations.</figcaption>
 </figure>
 
 <h2>Training</h2>
 <p>Both models were fine-tuned on free GPUs, so I had to keep the setup modest.</p>
 <div class="tbl"><table>
+<caption>Table 3. Training setup of the two models.</caption>
 <thead><tr><th>Setting</th><th>ModernBERT-base</th><th>FLAN-T5-Large</th></tr></thead>
 <tbody>
 <tr><td>Task</td><td>Token classification</td><td>Text-to-text generation</td></tr>
@@ -110,6 +107,7 @@ li{margin:.25em 0}
 <h2>Results: finding entities</h2>
 <p>I compared ModernBERT with SciBERT and with a rule-based baseline built on dictionaries. Scores are entity-level F1 on the test set (seqeval).</p>
 <div class="tbl"><table>
+<caption>Table 4. Entity-level F1 on the test set for the rule-based baseline, SciBERT and ModernBERT.</caption>
 <thead><tr><th>Entity</th><th class="n">Rule-based</th><th class="n">SciBERT</th><th class="n">ModernBERT</th><th class="n">Test support</th></tr></thead>
 <tbody>
 <tr><td>Instrument</td><td class="n">0.409</td><td class="n">0.750</td><td class="n best">0.760</td><td class="n">1,135</td></tr>
@@ -120,9 +118,9 @@ li{margin:.25em 0}
 <tr><td><b>Macro F1</b></td><td class="n">0.300</td><td class="n">0.652</td><td class="n best">0.682</td><td class="n"></td></tr>
 </tbody></table></div>
 
-<figure>
-<img src="../assets/heliophysics-ner/ner_per_class_results.png" alt="Precision, recall and F1 per entity type for ModernBERT" width="760">
-<figcaption>Precision, recall and F1 per entity type, ModernBERT.</figcaption>
+<figure class="fig">
+<img src="../assets/heliophysics-ner/ner_per_class_results.png" alt="Precision, recall and F1 per entity type for ModernBERT" width="1760" height="1020">
+<figcaption>Precision (ring), recall (dot) and F1 (diamond) per entity type, ModernBERT.</figcaption>
 </figure>
 
 <p>Three things stand out.</p>
@@ -136,6 +134,7 @@ li{margin:.25em 0}
 <h2>Results: reading figure captions</h2>
 <p>FLAN-T5 was evaluated on 69 test captions. Every output followed the requested format and carried a valid FigureType, so the model never produced something unusable, which is what you need before plugging it into an automatic pipeline.</p>
 <div class="tbl"><table>
+<caption>Table 5. FLAN-T5-Base compared with FLAN-T5-Large on the 69 test captions.</caption>
 <thead><tr><th>Attribute</th><th>Metric</th><th class="n">FLAN-T5-Base</th><th class="n">FLAN-T5-Large</th></tr></thead>
 <tbody>
 <tr><td>FigureType</td><td>Accuracy</td><td class="n">0.710</td><td class="n best">0.724</td></tr>
@@ -147,6 +146,7 @@ li{margin:.25em 0}
 <h3>FigureType: where the errors are</h3>
 <p>The model got 50 of 69 captions right. The errors are not random. They follow the pairs a human annotator would also hesitate on: time series versus scatter, time series versus spatial map, spatial map versus other. A caption for a multi-panel figure that mixes a map and a time series can honestly belong to two classes. “Other” is a residual class, and most of its errors come from time series.</p>
 <div class="tbl"><table>
+<caption>Table 6. FigureType results by class, with the number of test captions per class.</caption>
 <thead><tr><th>FigureType</th><th class="n">F1</th><th class="n">Support</th></tr></thead>
 <tbody>
 <tr><td>Spatial-map</td><td class="n best">0.833</td><td class="n">21</td></tr>
@@ -158,15 +158,16 @@ li{margin:.25em 0}
 </tbody></table></div>
 <p>I would not read much into the small classes. With 6 scatter and 8 spectral examples, one wrong prediction moves the F1 by several points.</p>
 
-<figure>
-<img src="../assets/heliophysics-ner/figuretype_confusion_matrix.png" alt="Confusion matrix for FigureType" width="560">
-<figcaption>FigureType confusion matrix on the test captions.</figcaption>
+<figure class="fig narrow">
+<img src="../assets/heliophysics-ner/figuretype_confusion_matrix.png" alt="Bubble confusion matrix for FigureType: true versus predicted class" width="1408" height="1337">
+<figcaption>FigureType confusion matrix on the test captions. Bubble size is the number of captions.</figcaption>
 </figure>
 
 <h3>Why ScientificObservable scores low</h3>
 <p>The annotations hold 868 distinct observable terms, and 74% of them appear only once. Under exact matching, a model has almost no chance of reproducing a term it never saw. If the annotation says “velocity of the solar wind” and the model writes “speed of the solar wind”, the strict metric counts a miss, even though the concept is right.</p>
 <p>Splitting the test examples by how much of their vocabulary appeared in training makes this visible:</p>
 <div class="tbl"><table>
+<caption>Table 7. ScientificObservable F1 by how much of the vocabulary was seen in training.</caption>
 <thead><tr><th>Vocabulary seen in training</th><th class="n">Examples</th><th class="n">Strict F1</th><th class="n">Lenient F1</th></tr></thead>
 <tbody>
 <tr><td>Fully seen</td><td class="n">19</td><td class="n">0.689</td><td class="n">0.797</td></tr>
@@ -174,9 +175,9 @@ li{margin:.25em 0}
 <tr><td>Fully unseen</td><td class="n">18</td><td class="n">0.046</td><td class="n">0.467</td></tr>
 </tbody></table></div>
 
-<figure>
-<img src="../assets/heliophysics-ner/f1_distribution_per_example.png" alt="Distribution of normalised F1 per test example" width="640">
-<figcaption>Per-example F1: scores cluster near 0 for terms never seen, near 1 for terms reproduced exactly.</figcaption>
+<figure class="fig">
+<img src="../assets/heliophysics-ner/vocabulary_exposure.png" alt="Strict and lenient F1 for ScientificObservable by how much of the vocabulary was seen in training" width="1760" height="880">
+<figcaption>The gap between strict and lenient F1 grows as the vocabulary becomes less familiar.</figcaption>
 </figure>
 
 <p>When the terms were seen, the model reproduces them well. When they weren’t, the strict score drops to almost zero, while the lenient score (partial credit for overlapping words) stays around 0.47. So the low headline number says as much about the metric as about the model. That is a fairer reading than “the model fails”, but it doesn’t mean the problem is solved: word overlap is a generous metric, and a proper semantic evaluation would be better.</p>
@@ -205,13 +206,21 @@ li{margin:.25em 0}
 
 <h2>Reproducing this</h2>
 <p>Both notebooks are written for a GPU runtime (Google Colab or Kaggle). The first covers data preparation, training and evaluation for ModernBERT. The second trains FLAN-T5 and runs the caption analysis. The annotated data is not part of the repository, so you need to supply your own Label Studio export for the first notebook and your own annotated captions for the second.</p>
-<pre><code>git clone https://github.com/USERNAME/heliophysics-ner.git
+<pre><code>git clone https://github.com/laataouisenda/heliophysics-ner.git
 cd heliophysics-ner
 pip install -r requirements.txt</code></pre>
-<p>The code, notebooks and results are on <a href="https://github.com/USERNAME/heliophysics-ner">GitHub</a>. Feedback is very welcome, especially from people working on information extraction for scientific literature.</p>
+<p>The code, notebooks and results are on <a href="https://github.com/laataouisenda/heliophysics-ner">GitHub</a>. Feedback is very welcome, especially from people working on information extraction for scientific literature.</p>
 
-<blockquote>Thank you to my supervisor, Pr. Mounir Zrigui, for his guidance throughout this project, and to Polytech Monastir.</blockquote>
+ <!--<blockquote>Thank you to my supervisor, Pr. Mounir Zrigui, for his guidance throughout this project, and to Polytech Monastir.</blockquote>-->
+
+<div class="sign">
+  <img src="../assets/favicon.svg" alt="">
+  <span>Senda Laataoui &middot; <a href="../index.html">more work</a> &middot; <a href="https://www.linkedin.com/in/senda-laataoui">LinkedIn</a></span>
+</div>
 
 </div>
+<script src="../assets/post.js" defer></script>
+<script src="../assets/signature.js" defer></script>
+</body>
 </body>
 </html>

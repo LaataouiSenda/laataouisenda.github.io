@@ -1,5 +1,5 @@
 /* ===== EDIT YOUR CONTENT HERE (one entry = one line/block) ===== */
-const news = [
+const news = [ 
   ["Nov 2026","Organized DevFest Monastir."],
   ["Sep 2026","Graduated as a software engineer and defended my final-year project on named entity recognition for heliophysics literature."],
   ["May 2026","Ran a hands-on workshop on explainable AI (LIME) at IMSET."],
