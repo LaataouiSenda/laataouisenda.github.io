@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building a real-time face-mask detection system with YOLOv8 | Senda Laataoui</title>
+<meta name="description" content="A YOLOv8 + Flask + Angular system for real-time face-mask detection with tracking and a live dashboard: design choices, fine-tuning, results and limitations.">
+<meta name="author" content="Senda Laataoui">
+<meta property="og:title" content="Building a real-time face-mask detection system with YOLOv8">
+<meta property="og:description" content="Design choices, architecture and honest limitations of a YOLOv8 + Flask + Angular system that detects mask wearing in live video.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://laataouisenda.github.io/assets/og-mask-detector-yolo.png">
+<meta name="twitter:card" content="summary_large_image">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="../assets/favicon-48.png">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/post.css">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-JTFGN2679E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-JTFGN2679E');
+</script>
+
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+  <img src="../assets/favicon.svg" alt="">
+  <a class="back" href="../index.html">&larr; Senda Laataoui</a>
+</div>
+<h1>Building a real-time face-mask detection system with YOLOv8</h1>
+<div class="date">November 2026</div>
+
+<blockquote>Checking mask compliance by hand does not scale, so I built a system that does it from a live video stream: detection, tracking, counting, storage and a dashboard. This post covers the design choices, how the pieces fit together, and what the project does and does not show.</blockquote>
+
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-hero.svg" alt="Three pastel cartoon faces: with mask, without mask, incorrect mask" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>The three states the system distinguishes: mask worn correctly, no mask, and mask worn incorrectly.</figcaption>
+</figure>
+
+<p>This was my year project (PFA) at Polytech Monastir in 2024/2025, supervised by Dr. Mohamed Amine Omrani and defended on 1 June 2025. I designed and implemented it on my own, from the requirements to the web interface. The code is on <a href="https://github.com/LaataouiSenda/mask-detector-yolo">GitHub</a>.</p>
+
+<h2>At a glance</h2>
+<div class="tbl">
+<table>
+  <tbody>
+    <tr><td>Context</td><td>Year project (PFA), Polytech Monastir, 2024/2025</td></tr>
+    <tr><td>My role</td><td>Sole developer: requirements, model fine-tuning, back end, front end, deployment</td></tr>
+    <tr><td>Model</td><td>YOLOv8s fine-tuned on MaskedFace-Net, mAP50 above 89%</td></tr>
+    <tr><td>Stack</td><td>Python, OpenCV, Flask, Socket.IO, Angular, MySQL, Docker Compose, Nginx</td></tr>
+    <tr><td>Status</td><td>Live detection, tracking and statistics work; the history page was still being debugged</td></tr>
+    <tr><td>Code</td><td><a href="https://github.com/LaataouiSenda/mask-detector-yolo">github.com/LaataouiSenda/mask-detector-yolo</a> (MIT)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The problem</h2>
+<p>During COVID-19, masks were a cheap and effective protection, but checking that people wore them properly was not. Manual checking needs staff on site, varies from one person to the next, and reacts too slowly to be preventive. I wanted to see how far a single computer with a webcam could go: a system that watches a video stream, decides for every face whether the mask is worn correctly, and keeps clean statistics without counting the same person twice.</p>
+
+<h2>What the system does</h2>
+<ul>
+  <li>Detects faces in a continuous video stream and classifies each one as <strong>with mask</strong>, <strong>without mask</strong> or <strong>incorrect mask</strong>.</li>
+  <li>Gives each face a persistent ID so a person who stays in view is counted once, not once per frame.</li>
+  <li>Draws bounding boxes and labels on the stream and shows live counters in a dashboard.</li>
+  <li>Stores detections and hourly aggregates, with a history view meant to filter them by date and time (still being debugged, see below).</li>
+</ul>
+
+<h2>Why YOLOv8</h2>
+<p>Object detectors fall into two families. Two-stage detectors such as Faster R-CNN first propose regions and then classify them. They are accurate but slow and heavy, which fits poorly with a live stream on a single machine. One-stage detectors such as YOLO predict boxes and classes in a single pass, which is what a real-time system needs.</p>
+<p>Within the YOLO family I chose YOLOv8 for practical reasons: an anchor-free head, several model sizes (nano, small, medium) so the accuracy/speed trade-off can follow the available hardware, export to ONNX and TensorRT, and a mature, well-documented ecosystem through Ultralytics. For a project I had to build, test and maintain alone, a stable toolchain mattered as much as a point of mAP.</p>
+
+<h2>Training the model</h2>
+<p>I did not train a detector from scratch. I fine-tuned <strong>YOLOv8s</strong>, starting from weights pre-trained on COCO (transfer learning), on the <strong>MaskedFace-Net</strong> dataset from Kaggle. The images were organised into train, validation and test folders with a YAML configuration, and training ran on a Google Colab GPU on about 30,000 images for 100 epochs with a batch size of 16. The best checkpoint (<code>best.pt</code>) is the one the application loads, and the metrics and logs were saved with it.</p>
+
+<h2>Results</h2>
+<p>The fine-tuned model reaches an <strong>mAP50 above 89%</strong> on MaskedFace-Net. On my project poster I compared it with other YOLO versions on the same metric: YOLOv8 gives 89.3%, ahead of YOLOv11 at about 88% and YOLOv5 at about 85%.</p>
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-map50.svg" alt="Bar chart of mAP50 for YOLOv5, YOLOv8 and YOLOv11" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>mAP50 by YOLO version, from the comparison on my project poster (the vertical axis starts at 80%).</figcaption>
+</figure>
+<p>mAP50 is a single summary number. It does not show how the model does on each class or in harder conditions, which is why the limitations below matter.</p>
+
+<h2>Architecture</h2>
+<p>The pipeline is a chain of small modules, each with one job.</p>
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-architecture.svg" alt="Pipeline: webcam, capture, detector, tracker, statistics, then MySQL and web interface" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>From camera to dashboard: each stage hands its output to the next.</figcaption>
+</figure>
+
+<p>The back end is Python with Flask for the REST API and Flask-SocketIO for the live channel. The front end is Angular with three components: a video feed (the annotated MJPEG stream), a dashboard (live counters and charts) and a history view (filtering and download). Live updates travel over WebSocket; history and configuration go through plain REST calls. Everything is containerised with Docker Compose, with Nginx routing <code>/api</code>, <code>/ws</code> and <code>/video_feed</code>.</p>
+<p>Keeping capture, inference, tracking, statistics and display apart means each can be replaced without touching the rest, for example swapping the detector or the tracker, or adding a second camera later.</p>
+
+<h2>Three things that took the most care</h2>
+<h3>1. Not counting the same person thirty times a second</h3>
+<p>A detector works frame by frame, so a person standing still would be counted on every frame. A lightweight tracker gives each face an ID and keeps it across frames, with a counter of missed frames to decide when a face has really left. This is what turns raw detections into counts that mean something.</p>
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-tracking.svg" alt="Two faces keeping the same IDs over three consecutive frames" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>Tracking: the same ID follows a face from frame to frame, so it is counted once.</figcaption>
+</figure>
+
+<h3>2. Keeping latency down</h3>
+<p>Capture and processing run in separate threads, inference uses GPU acceleration, and buffers are released regularly so memory does not creep up during long sessions. Live data is pushed over Socket.IO instead of being polled.</p>
+<h3>3. Aggregating at write time</h3>
+<p>Each processed frame is stored, and a separate table keeps hourly aggregates. Dashboard and history queries then read a few rows per hour instead of scanning every detection.</p>
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-data-model.svg" alt="Entity-relationship diagram with four tables" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>The data model: tracked faces feed detection history, which is aggregated hourly and linked to system metrics.</figcaption>
+</figure>
+
+
+<h2>Code structure</h2>
+<p>The repository keeps the back end and front end separate, so each can be started and changed on its own.</p>
+<pre><code>mask-detector-yolo/
+&boxvr;&boxh;&boxh; backend/
+&boxv;   &boxvr;&boxh;&boxh; app.py              # Flask server (REST + Socket.IO + video stream)
+&boxv;   &boxvr;&boxh;&boxh; mask_detector.py    # YOLOv8 detection logic
+&boxv;   &boxvr;&boxh;&boxh; requirements.txt
+&boxv;   &boxur;&boxh;&boxh; data/models/        # model weights
+&boxvr;&boxh;&boxh; frontend/                # Angular app: video feed, dashboard, history
+&boxur;&boxh;&boxh; README.md</code></pre>
+<p>Three channels connect the two sides: Socket.IO for live counters, an MJPEG stream for the annotated video, and a REST API for paginated history, filtering, export and configuration.</p>
+
+<h2>The interface</h2>
+<p>The web interface has three views: the live stream with annotated boxes, a statistics page with counters for total, with mask, without mask and incorrect mask, and a history page for past detections. The first two worked when I presented the project; the history page was still being debugged.</p>
+<figure>
+  <img src="../assets/mask-detector-yolo/mask-dashboard.svg" alt="Schematic of the dashboard with counters, a bar chart and a donut chart" style="max-width:100%;height:auto;border-radius:14px">
+  <figcaption>Schematic of the dashboard layout (an illustration, not a capture of the running application).</figcaption>
+</figure>
+
+
+<h2>Design targets</h2>
+<p>These are the requirements I set for the system.</p>
+<div class="tbl">
+<table>
+  <thead><tr><th>Area</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Performance</td><td>At least 15 FPS, under 100 ms per frame, up to 50 faces at once</td></tr>
+    <tr><td>Reliability</td><td>24/7 operation, hourly backups, automatic restart after a crash</td></tr>
+    <tr><td>Privacy and security</td><td>100% local processing (no cloud), access control on the dashboards</td></tr>
+    <tr><td>Usability</td><td>Responsive web interface, loads in under 2 s, usable on mobile and tablet</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>What this project does and does not show</h2>
+<ul>
+  <li><strong>The system is the contribution, not a new model.</strong> I fine-tuned an existing YOLOv8 model and focused on the engineering around it: pipeline, tracking, storage and interface.</li>
+  <li><strong>The history view is unfinished.</strong> Detections are stored, but the page that lets you browse and filter them was not fully operational when I presented the project.</li>
+  <li><strong>Results are limited to mAP50.</strong> The design targets above are what I specified, not measured performance, and I do not give per-class precision and recall or measured FPS in this post.</li>
+  <li><strong>Hard cases remain open.</strong> Side views, occlusion, low light and small faces, and in particular the incorrect-mask class, which is usually the hardest to separate from the other two.</li>
+  <li><strong>Scope.</strong> One video source at a time, up to 50 faces, local deployment only.</li>
+</ul>
+
+<h2>What I would do next</h2>
+<ul>
+  <li>Debug and finish the detection history module.</li>
+  <li>Evaluate on a held-out set with per-class precision and recall, including the difficult cases above.</li>
+  <li>Reduce model size with quantisation and explore continual learning to adapt to new environments.</li>
+  <li>Support several cameras, add thermal detection and generate reports automatically.</li>
+  <li>Move to the cloud behind a third-party API so the system can be offered as a service.</li>
+  <li>Study where and why the model fails, which is where interpretability methods become useful.</li>
+</ul>
+
+<h2>Where this leads for me</h2>
+<p>Building this system taught me how much of a working vision application is not the model: tracking, data flow, latency and honest reporting of results. It also left me with a question I could not answer with a single mAP number: when the model confuses a badly worn mask with a correct one, what is it actually looking at? That is the kind of question explainable AI is for, and it is the direction I want to take in my research, in particular for medical imaging, where a wrong decision has a real cost and the reason behind a prediction matters as much as the prediction.</p>
+
+<h2>Run it yourself</h2>
+<p>You need Python 3.8+, Node.js with the Angular CLI, MySQL 8.0+, a webcam, and ideally an NVIDIA GPU with CUDA for real-time speed.</p>
+<pre><code># backend (http://localhost:5000)
+python -m venv venv &amp;&amp; source venv/bin/activate
+cd backend &amp;&amp; pip install -r requirements.txt
+python app.py
+
+# frontend (http://localhost:4200), in a second terminal
+cd frontend &amp;&amp; npm install
+ng serve</code></pre>
+<p>Create a MySQL database first; the database connection and model settings are read from environment variables. The full instructions are in the <a href="https://github.com/LaataouiSenda/mask-detector-yolo">repository README</a>, under an MIT license. Questions and suggestions are welcome on <a href="https://www.linkedin.com/in/senda-laataoui">LinkedIn</a>.</p>
+
+<h2>Acknowledgments and references</h2>
+<p> The model is built on Ultralytics YOLOv8, the dataset is MaskedFace-Net, and the video processing uses OpenCV.</p>
+<ul>
+  <li>Jocher, G., Chaurasia, A., Qiu, J. <em>Ultralytics YOLOv8</em>, 2023. <a href="https://docs.ultralytics.com/models/yolov8/">docs.ultralytics.com</a></li>
+  <li>Cabani, A., Hammoudi, K., Benhabiles, H., Melkemi, M. MaskedFace-Net: a dataset of correctly/incorrectly masked face images in the context of COVID-19. <em>Smart Health</em>, 2021.</li>
+</ul>
+
+<div class="sign">
+  <img src="../assets/favicon.svg" alt="">
+  <span>Senda Laataoui &middot; <a href="../index.html">more work</a> &middot; <a href="https://www.linkedin.com/in/senda-laataoui">LinkedIn</a></span>
+</div>
+
+</div>
+</div>
+<script src="../assets/post.js" defer></script>
+<script src="../assets/signature.js" defer></script>
+</body>
+</html>
